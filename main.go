@@ -25,6 +25,22 @@ func (tc *Context) Query(key string) string {
 	return tc.R.URL.Query().Get(key)
 }
 
+func (tc *Context) Status(status int) {
+	tc.W.WriteHeader(status)
+}
+
+func (tc *Context) StatusOk(status int) {
+	tc.W.WriteHeader(http.StatusOK)
+}
+
+func (tc *Context) StatusServerError(status int) {
+	tc.W.WriteHeader(http.StatusInternalServerError)
+}
+
+func (tc *Context) StatusBadRequest(status int) {
+	tc.W.WriteHeader(http.StatusBadRequest)
+}
+
 func (tc *Context) Parse(target any) error {
 	body, err := io.ReadAll(tc.R.Body)
 	if err != nil {
