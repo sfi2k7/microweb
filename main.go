@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 )
 
@@ -57,10 +58,37 @@ func middle(fn func(*microcontext)) http.HandlerFunc {
 }
 
 type MicroWeb struct {
+	staticisset bool
 }
 
 func New() *MicroWeb {
 	return &MicroWeb{}
+}
+
+func (mw *MicroWeb) Static(path string) {
+	if mw.staticisset {
+		return
+	}
+
+	mw.staticisset = true
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir(path))))
+}
+
+func (mw *MicroWeb) StaticWithPrefix(prefix, path string) {
+	if mw.staticisset {
+		return
+	}
+
+	if !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+
+	mw.staticisset = true
+	http.Handle(prefix, http.StripPrefix(prefix, http.FileServer(http.Dir(path))))
 }
 
 func (mw *MicroWeb) Get(path string, handler func(*microcontext)) {
