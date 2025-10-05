@@ -66,19 +66,19 @@ func (tc *Context) String(str string) error {
 	return err
 }
 
-func middle(fn func(*Context)) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := &Context{R: r, W: w, Method: r.Method}
-		fn(ctx)
-	})
-}
-
 type MicroWeb struct {
 	staticisset bool
 }
 
 func New() *MicroWeb {
 	return &MicroWeb{}
+}
+
+func (mw *MicroWeb) middle(fn func(*Context)) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := &Context{R: r, W: w, Method: r.Method}
+		fn(ctx)
+	})
 }
 
 func (mw *MicroWeb) Static(path string) {
@@ -108,31 +108,31 @@ func (mw *MicroWeb) StaticWithPrefix(prefix, path string) {
 }
 
 func (mw *MicroWeb) Get(path string, handler func(*Context)) {
-	http.HandleFunc(path, middle(handler))
+	http.HandleFunc(path, mw.middle(handler))
 }
 
 func (mw *MicroWeb) Post(path string, handler func(*Context)) {
-	http.HandleFunc(path, middle(handler))
+	http.HandleFunc(path, mw.middle(handler))
 }
 
 func (mw *MicroWeb) Put(path string, handler func(*Context)) {
-	http.HandleFunc(path, middle(handler))
+	http.HandleFunc(path, mw.middle(handler))
 }
 
 func (mw *MicroWeb) Delete(path string, handler func(*Context)) {
-	http.HandleFunc(path, middle(handler))
+	http.HandleFunc(path, mw.middle(handler))
 }
 
 func (mw *MicroWeb) Head(path string, handler func(*Context)) {
-	http.HandleFunc(path, middle(handler))
+	http.HandleFunc(path, mw.middle(handler))
 }
 
 func (mw *MicroWeb) Options(path string, handler func(*Context)) {
-	http.HandleFunc(path, middle(handler))
+	http.HandleFunc(path, mw.middle(handler))
 }
 
 func (mw *MicroWeb) Patch(path string, handler func(*Context)) {
-	http.HandleFunc(path, middle(handler))
+	http.HandleFunc(path, mw.middle(handler))
 }
 
 func (mw *MicroWeb) Listen(port int) error {
