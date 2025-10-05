@@ -3,6 +3,7 @@ package microweb
 import (
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 	"os"
@@ -104,6 +105,15 @@ func (mw *MicroWeb) middle(fn func(*Context)) http.HandlerFunc {
 			}
 		}
 	})
+}
+
+func (c *Context) View(filename string, data interface{}) error {
+	t, err := template.New(filename).ParseFiles(filename)
+	if err != nil {
+		return err
+	}
+
+	return t.Execute(c.W, data)
 }
 
 func (mw *MicroWeb) Static(path string) {
