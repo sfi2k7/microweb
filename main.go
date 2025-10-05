@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 )
 
 type Context struct {
@@ -167,7 +168,7 @@ func (mw *MicroWeb) addroute(path, method string, handler Handler) error {
 
 	_, ok = mw.endpoints[path][method]
 	if ok {
-		return errors.New("conflicting path " + path + ":" + method)
+		log.Fatal(errors.New("conflicting path " + path + ":" + method))
 	}
 
 	mw.endpoints[path][method] = handler
@@ -175,55 +176,39 @@ func (mw *MicroWeb) addroute(path, method string, handler Handler) error {
 }
 
 func (mw *MicroWeb) Get(path string, handler func(*Context)) {
-	err := mw.addroute(path, http.MethodGet, handler)
-	if err != nil {
-		log.Fatal(err)
-	}
+	mw.addroute(path, http.MethodGet, handler)
 }
 
 func (mw *MicroWeb) Post(path string, handler func(*Context)) {
-	err := mw.addroute(path, http.MethodPost, handler)
-	if err != nil {
-		log.Fatal(err)
-	}
+	mw.addroute(path, http.MethodPost, handler)
 }
 
 func (mw *MicroWeb) Put(path string, handler func(*Context)) {
-	err := mw.addroute(path, http.MethodPut, handler)
-	if err != nil {
-		log.Fatal(err)
-	}
+	mw.addroute(path, http.MethodPut, handler)
 }
 
 func (mw *MicroWeb) Delete(path string, handler func(*Context)) {
-	err := mw.addroute(path, http.MethodDelete, handler)
-	if err != nil {
-		log.Fatal(err)
-	}
+	mw.addroute(path, http.MethodDelete, handler)
 }
 
 func (mw *MicroWeb) Head(path string, handler func(*Context)) {
-	err := mw.addroute(path, http.MethodHead, handler)
-	if err != nil {
-		log.Fatal(err)
-	}
+	mw.addroute(path, http.MethodHead, handler)
 }
 
 func (mw *MicroWeb) Options(path string, handler func(*Context)) {
-	err := mw.addroute(path, http.MethodOptions, handler)
-	if err != nil {
-		log.Fatal(err)
-	}
+	mw.addroute(path, http.MethodOptions, handler)
 }
 
 func (mw *MicroWeb) Patch(path string, handler func(*Context)) {
-	err := mw.addroute(path, http.MethodPatch, handler)
-	if err != nil {
-		log.Fatal(err)
-	}
+	mw.addroute(path, http.MethodPatch, handler)
 }
 
 func (mw *MicroWeb) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+
+	start := time.Now()
+	defer func() {
+		log.Printf("%s %s %s", req.Method, req.URL.Path, time.Since(start))
+	}()
 
 	var path = req.URL.Path
 	if path != "/" {
