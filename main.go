@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -78,10 +79,14 @@ type MicroWeb struct {
 	premiddleware  []MiddleWare
 	postmiddleware []MiddleWare
 	endpoints      map[string]map[string]Handler
+	count          atomic.Int64
 }
 
 func New() *MicroWeb {
-	return &MicroWeb{}
+	return &MicroWeb{
+		endpoints: make(map[string]map[string]Handler),
+		count:     atomic.Int64{},
+	}
 }
 
 func (mw *MicroWeb) UseBefore(middlewares ...MiddleWare) {
@@ -92,25 +97,25 @@ func (mw *MicroWeb) UseAfter(middlewares ...MiddleWare) {
 	mw.postmiddleware = append(mw.postmiddleware, middlewares...)
 }
 
-func (mw *MicroWeb) middle(fn func(*Context)) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := &Context{R: r, W: w, Method: r.Method}
+// func (mw *MicroWeb) middle(fn func(*Context)) http.HandlerFunc {
+// 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		ctx := &Context{R: r, W: w, Method: r.Method}
 
-		for _, middleware := range mw.premiddleware {
-			if next := middleware(ctx); !next {
-				return
-			}
-		}
+// 		for _, middleware := range mw.premiddleware {
+// 			if next := middleware(ctx); !next {
+// 				return
+// 			}
+// 		}
 
-		fn(ctx)
+// 		fn(ctx)
 
-		for _, middleware := range mw.postmiddleware {
-			if next := middleware(ctx); !next {
-				return
-			}
-		}
-	})
-}
+// 		for _, middleware := range mw.postmiddleware {
+// 			if next := middleware(ctx); !next {
+// 				return
+// 			}
+// 		}
+// 	})
+// }
 
 func (c *Context) View(filename string, data interface{}) error {
 	body, err := os.ReadFile(filename)
@@ -152,29 +157,6 @@ func (mw *MicroWeb) StaticWithPrefix(prefix, path string) {
 	http.Handle(prefix, http.StripPrefix(prefix, http.FileServer(http.Dir(path))))
 }
 
-func (mw *MicroWeb) addroute(path, method string, handler Handler) error {
-	if path != "/" {
-		path = strings.TrimSuffix(path, "/")
-	}
-
-	if mw.endpoints == nil {
-		mw.endpoints = make(map[string]map[string]Handler)
-	}
-
-	_, ok := mw.endpoints[path]
-	if !ok {
-		mw.endpoints[path] = make(map[string]Handler)
-	}
-
-	_, ok = mw.endpoints[path][method]
-	if ok {
-		log.Fatal(errors.New("conflicting path " + path + ":" + method))
-	}
-
-	mw.endpoints[path][method] = handler
-	return nil
-}
-
 func (mw *MicroWeb) Get(path string, handler func(*Context)) {
 	mw.addroute(path, http.MethodGet, handler)
 }
@@ -203,11 +185,48 @@ func (mw *MicroWeb) Patch(path string, handler func(*Context)) {
 	mw.addroute(path, http.MethodPatch, handler)
 }
 
+func (mw *MicroWeb) addroute(path, method string, handler Handler) error {
+	if handler == nil {
+		return errors.New("handler cannot be nil")
+	}
+
+	if method == "" {
+		method = http.MethodGet
+	}
+
+	if path == "" {
+		path = "/"
+	}
+
+	if path != "/" {
+		path = strings.TrimSuffix(path, "/")
+	}
+
+	if mw.endpoints == nil {
+		mw.endpoints = make(map[string]map[string]Handler)
+	}
+
+	_, ok := mw.endpoints[path]
+	if !ok {
+		mw.endpoints[path] = make(map[string]Handler)
+	}
+
+	_, ok = mw.endpoints[path][method]
+	if ok {
+		log.Fatal(errors.New("conflicting path " + path + ":" + method))
+	}
+
+	mw.endpoints[path][method] = handler
+	return nil
+}
+
 func (mw *MicroWeb) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+
+	mw.count.Store(mw.count.Add(1))
 
 	start := time.Now()
 	defer func() {
-		log.Printf("%s %s %s", req.Method, req.URL.Path, time.Since(start))
+		log.Printf("%s %s %s #%d", req.Method, req.URL.Path, time.Since(start), mw.count.Load())
 	}()
 
 	var path = req.URL.Path
