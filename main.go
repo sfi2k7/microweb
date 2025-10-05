@@ -2,9 +2,11 @@ package microweb
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,6 +21,7 @@ type Context struct {
 }
 
 type MiddleWare func(c *Context) bool
+type Handler func(*Context)
 
 func (tc *Context) Json(v any) error {
 	return json.NewEncoder(tc.W).Encode(v)
@@ -73,6 +76,7 @@ type MicroWeb struct {
 	staticisset    bool
 	premiddleware  []MiddleWare
 	postmiddleware []MiddleWare
+	endpoints      map[string]map[string]Handler
 }
 
 func New() *MicroWeb {
@@ -147,32 +151,112 @@ func (mw *MicroWeb) StaticWithPrefix(prefix, path string) {
 	http.Handle(prefix, http.StripPrefix(prefix, http.FileServer(http.Dir(path))))
 }
 
+func (mw *MicroWeb) addroute(path, method string, handler Handler) error {
+	if path != "/" {
+		path = strings.TrimSuffix(path, "/")
+	}
+
+	if mw.endpoints == nil {
+		mw.endpoints = make(map[string]map[string]Handler)
+	}
+
+	_, ok := mw.endpoints[path]
+	if !ok {
+		mw.endpoints[path] = make(map[string]Handler)
+	}
+
+	_, ok = mw.endpoints[path][method]
+	if ok {
+		return errors.New("conflicting path " + path + ":" + method)
+	}
+
+	mw.endpoints[path][method] = handler
+	return nil
+}
+
 func (mw *MicroWeb) Get(path string, handler func(*Context)) {
-	http.HandleFunc(path, mw.middle(handler))
+	err := mw.addroute(path, http.MethodGet, handler)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (mw *MicroWeb) Post(path string, handler func(*Context)) {
-	http.HandleFunc(path, mw.middle(handler))
+	err := mw.addroute(path, http.MethodPost, handler)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (mw *MicroWeb) Put(path string, handler func(*Context)) {
-	http.HandleFunc(path, mw.middle(handler))
+	err := mw.addroute(path, http.MethodPut, handler)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (mw *MicroWeb) Delete(path string, handler func(*Context)) {
-	http.HandleFunc(path, mw.middle(handler))
+	err := mw.addroute(path, http.MethodDelete, handler)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (mw *MicroWeb) Head(path string, handler func(*Context)) {
-	http.HandleFunc(path, mw.middle(handler))
+	err := mw.addroute(path, http.MethodHead, handler)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (mw *MicroWeb) Options(path string, handler func(*Context)) {
-	http.HandleFunc(path, mw.middle(handler))
+	err := mw.addroute(path, http.MethodOptions, handler)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func (mw *MicroWeb) Patch(path string, handler func(*Context)) {
-	http.HandleFunc(path, mw.middle(handler))
+	err := mw.addroute(path, http.MethodPatch, handler)
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func (mw *MicroWeb) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+
+	var path = req.URL.Path
+	if path != "/" {
+		path = strings.TrimSuffix(req.URL.Path, "/")
+	}
+
+	methods, ok := mw.endpoints[path]
+	if !ok {
+		http.NotFound(w, req)
+		return
+	}
+
+	handler, ok := methods[req.Method]
+	if !ok {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+
+	ctx := &Context{R: req, W: w, Method: req.Method}
+
+	for _, middleware := range mw.premiddleware {
+		if next := middleware(ctx); !next {
+			return
+		}
+	}
+
+	handler(ctx)
+
+	for _, middleware := range mw.postmiddleware {
+		if next := middleware(ctx); !next {
+			return
+		}
+	}
 }
 
 func (mw *MicroWeb) Listen(port int) error {
@@ -185,5 +269,5 @@ func (mw *MicroWeb) Listen(port int) error {
 		os.Exit(0)
 	}()
 
-	return http.ListenAndServe(fmt.Sprintf(":%d", port), nil)
+	return http.ListenAndServe(fmt.Sprintf(":%d", port), mw)
 }
