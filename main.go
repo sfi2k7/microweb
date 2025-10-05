@@ -108,7 +108,12 @@ func (mw *MicroWeb) middle(fn func(*Context)) http.HandlerFunc {
 }
 
 func (c *Context) View(filename string, data interface{}) error {
-	t, err := template.New(filename).ParseFiles(filename)
+	body, err := os.ReadFile(filename)
+	if err != nil {
+		return err
+	}
+
+	t, err := template.New(filename).Parse(string(body))
 	if err != nil {
 		return err
 	}
