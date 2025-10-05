@@ -17,6 +17,8 @@ type Context struct {
 	Method string
 }
 
+type MiddleWare func(c *Context) bool
+
 func (tc *Context) Json(v any) error {
 	return json.NewEncoder(tc.W).Encode(v)
 }
@@ -67,17 +69,40 @@ func (tc *Context) String(str string) error {
 }
 
 type MicroWeb struct {
-	staticisset bool
+	staticisset    bool
+	premiddleware  []MiddleWare
+	postmiddleware []MiddleWare
 }
 
 func New() *MicroWeb {
 	return &MicroWeb{}
 }
 
+func (mw *MicroWeb) UseBefore(middlewares ...MiddleWare) {
+	mw.premiddleware = append(mw.premiddleware, middlewares...)
+}
+
+func (mw *MicroWeb) UseAfter(middlewares ...MiddleWare) {
+	mw.postmiddleware = append(mw.postmiddleware, middlewares...)
+}
+
 func (mw *MicroWeb) middle(fn func(*Context)) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := &Context{R: r, W: w, Method: r.Method}
+
+		for _, middleware := range mw.premiddleware {
+			if next := middleware(ctx); !next {
+				return
+			}
+		}
+
 		fn(ctx)
+
+		for _, middleware := range mw.postmiddleware {
+			if next := middleware(ctx); !next {
+				return
+			}
+		}
 	})
 }
 
