@@ -14,6 +14,7 @@ type Context struct {
 	W          http.ResponseWriter
 	Method     string
 	formparsed bool
+	state      map[string]any
 }
 
 func (tc *Context) Json(v any) error {
@@ -60,6 +61,18 @@ func (tc *Context) StatusServerError(status int) {
 
 func (tc *Context) StatusBadRequest(status int) {
 	tc.W.WriteHeader(http.StatusBadRequest)
+}
+
+func (tc *Context) Set(k string, v any) {
+	tc.state[k] = v
+}
+
+func (tc *Context) Get(k string) any {
+	if v, ok := tc.state[k]; ok {
+		return v
+	}
+
+	return nil
 }
 
 func (tc *Context) Parse(target any) error {

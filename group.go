@@ -20,10 +20,6 @@ func (g *Group) Group(prefix string) *Group {
 	}
 }
 
-// func (g *Group) Use(middlewares ...MiddleWare) {
-// 	g.middleware = append(g.middleware, middlewares...)
-// }
-
 func (g *Group) middle(h Handler) Handler {
 	return func(ctx *Context) {
 		for _, m := range g.middleware {

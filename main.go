@@ -115,7 +115,7 @@ func (mw *Router) addroute(path, method string, handler Handler) error {
 func (mw *Router) middle(fn func(*Context)) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		ctx := &Context{R: r, W: w, Method: r.Method}
+		ctx := &Context{R: r, W: w, Method: r.Method, state: make(map[string]any)}
 
 		for _, middleware := range mw.premiddleware {
 			if next := middleware(ctx); !next {
@@ -135,7 +135,6 @@ func (mw *Router) middle(fn func(*Context)) http.HandlerFunc {
 
 func (mw *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
-	fmt.Println("id", r.PathValue("id"))
 	// Check if this is a static file request
 	if mw.staticPath != "" {
 
