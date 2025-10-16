@@ -1,6 +1,8 @@
 package microweb
 
-import "path/filepath"
+import (
+	"path/filepath"
+)
 
 type Group struct {
 	r          *Router
@@ -20,12 +22,26 @@ func (g *Group) Group(prefix string) *Group {
 	}
 }
 
+func (g *Group) runMiddlewares(ctx *Context) bool {
+	for _, m := range g.middleware {
+		if !m(ctx) {
+			return false
+		}
+	}
+
+	if g.parent != nil {
+		if !g.parent.runMiddlewares(ctx) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (g *Group) middle(h Handler) Handler {
 	return func(ctx *Context) {
-		for _, m := range g.middleware {
-			if !m(ctx) {
-				return
-			}
+		if !g.runMiddlewares(ctx) {
+			return
 		}
 
 		h(ctx)

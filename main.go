@@ -41,6 +41,7 @@ func (r *Router) Group(prefix string) *Group {
 		prefix:     prefix,
 		middleware: []MiddleWare{},
 		children:   []*Group{},
+		parent:     nil,
 	}
 
 	r.groups = append(r.groups, g)
@@ -112,15 +113,24 @@ func (mw *Router) addroute(path, method string, handler Handler) error {
 	return nil
 }
 
+func (mw *Router) runMiddlewares(ctx *Context) bool {
+
+	for _, m := range mw.premiddleware {
+		if !m(ctx) {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (mw *Router) middle(fn func(*Context)) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		ctx := &Context{R: r, W: w, Method: r.Method, state: make(map[string]any)}
 
-		for _, middleware := range mw.premiddleware {
-			if next := middleware(ctx); !next {
-				return
-			}
+		if !mw.runMiddlewares(ctx) {
+			return
 		}
 
 		fn(ctx)
@@ -145,7 +155,7 @@ func (mw *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fmt.Println("check if file exists", mw.staticPath+r.URL.Path, mw.fileExists(mw.staticPath+r.URL.Path))
+		// fmt.Println("check if file exists", mw.staticPath+r.URL.Path, mw.fileExists(mw.staticPath+r.URL.Path))
 		// Check for root-level static files based on file existence
 		if mw.fileExists(mw.staticPath + r.URL.Path) {
 			fileServer := http.FileServer(http.Dir(mw.staticPath))
