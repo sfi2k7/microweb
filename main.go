@@ -69,7 +69,7 @@ func (mw *Router) StaticWithPrefix(prefix, path string) {
 }
 
 func (mw *Router) StaticPath(path string) {
-	mw.staticPath = path
+	mw.mux.Handle("GET /", http.StripPrefix("/", http.FileServer(http.Dir(path))))
 }
 
 func (mw *Router) fileExists(filepath string) bool {
@@ -146,23 +146,23 @@ func (mw *Router) middle(fn func(*Context)) http.HandlerFunc {
 func (mw *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Check if this is a static file request
-	if mw.staticPath != "" {
+	// if mw.staticPath != "" {
 
-		// Check for /static/ prefix first
-		if mw.staticprefix != "" && strings.HasPrefix(r.URL.Path, mw.staticprefix) {
-			fileServer := http.StripPrefix(mw.staticprefix, http.FileServer(http.Dir(mw.staticPath)))
-			fileServer.ServeHTTP(w, r)
-			return
-		}
+	// 	// Check for /static/ prefix first
+	// 	if mw.staticprefix != "" && strings.HasPrefix(r.URL.Path, mw.staticprefix) {
+	// 		fileServer := http.StripPrefix(mw.staticprefix, http.FileServer(http.Dir(mw.staticPath)))
+	// 		fileServer.ServeHTTP(w, r)
+	// 		return
+	// 	}
 
-		// fmt.Println("check if file exists", mw.staticPath+r.URL.Path, mw.fileExists(mw.staticPath+r.URL.Path))
-		// Check for root-level static files based on file existence
-		if mw.fileExists(mw.staticPath + r.URL.Path) {
-			fileServer := http.FileServer(http.Dir(mw.staticPath))
-			fileServer.ServeHTTP(w, r)
-			return
-		}
-	}
+	// 	// fmt.Println("check if file exists", mw.staticPath+r.URL.Path, mw.fileExists(mw.staticPath+r.URL.Path))
+	// 	// Check for root-level static files based on file existence
+	// 	if mw.fileExists(mw.staticPath + r.URL.Path) {
+	// 		fileServer := http.FileServer(http.Dir(mw.staticPath))
+	// 		fileServer.ServeHTTP(w, r)
+	// 		return
+	// 	}
+	// }
 
 	mw.count.Store(mw.count.Add(1))
 
