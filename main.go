@@ -283,6 +283,15 @@ func (mw *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Printf("%s %s %s #%d", r.Method, r.URL.Path, time.Since(start), mw.count.Load())
 	}()
 
+	// Check if this is a WebSocket upgrade request
+	isWebSocket := r.Header.Get("Upgrade") == "websocket"
+
+	if isWebSocket {
+		// Don't wrap for WebSocket - needs Hijacker interface
+		mw.mux.ServeHTTP(w, r)
+		return
+	}
+
 	// Create a custom response writer to capture status code
 	crw := &customResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 	mw.mux.ServeHTTP(crw, r)

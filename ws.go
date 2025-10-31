@@ -488,20 +488,7 @@ func writePump(client *Client, config *WsConfig) {
 				return
 			}
 
-			w, err := client.conn.NextWriter(websocket.TextMessage)
-			if err != nil {
-				return
-			}
-			w.Write(message)
-
-			// Add queued messages to current websocket message
-			n := len(client.send)
-			for i := 0; i < n; i++ {
-				w.Write([]byte{'\n'})
-				w.Write(<-client.send)
-			}
-
-			if err := w.Close(); err != nil {
+			if err := client.conn.WriteMessage(websocket.TextMessage, message); err != nil {
 				return
 			}
 
